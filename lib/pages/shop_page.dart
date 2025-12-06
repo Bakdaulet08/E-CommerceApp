@@ -6,6 +6,8 @@ import '../components/my_product_tile.dart';
 import '../models/shop.dart';
 
 class ShopPage extends StatelessWidget {
+
+
   const ShopPage({super.key});
 
   @override
@@ -53,3 +55,4 @@ class ShopPage extends StatelessWidget {
     );
   }
 }
+

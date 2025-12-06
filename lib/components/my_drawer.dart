@@ -32,6 +32,21 @@ class MyDrawer extends StatelessWidget {
               Navigator.pop(context);
               Navigator.pushNamed(context, '/cartPage');
             },
+          ),MyListTile(
+            text: "top up your account",
+            icon: Icons.balance,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/balancePage');
+            },
+          ),
+          MyListTile(
+            text: "Purchase History",
+            icon: Icons.history,
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/history');
+            },
           ),
           const Spacer(), // Добавляем Spacer, чтобы "Exit" был внизу
           Padding(
@@ -41,7 +56,7 @@ class MyDrawer extends StatelessWidget {
               icon: Icons.logout,
               onTap: () {
                 Navigator.pushNamedAndRemoveUntil(
-                    context, '/introPage', (route) => false);
+                    context, '/loginPage', (route) => false);
               },
             ),
           ),

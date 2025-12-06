@@ -1,7 +1,13 @@
-import 'package:ecommerce_app/models/product.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'product.dart';
 
 class Shop extends ChangeNotifier {
+  final user = FirebaseAuth.instance.currentUser!;
+  final FirebaseFirestore db = FirebaseFirestore.instance;
+
+  // Локальный список товаров
   final List<Product> _shop = [
     Product(
       name: "Creatine",
@@ -20,34 +26,85 @@ class Shop extends ChangeNotifier {
       price: 9420,
       description: "Item description..",
       imagePath: "lib/assets/gainer.png",
-
     ),
     Product(
       name: "Dumbbell set",
       price: 20350,
       description: "Item description..",
       imagePath: "lib/assets/dumbbell.png",
-
     ),
   ];
 
-  final List<Product> _cart = []; // Это хранит товары в корзине
-
-  // Геттер для магазина
   List<Product> get shop => _shop;
 
-  // Геттер для корзины (исправлено)
+  // Корзина
+  List<Product> _cart = [];
   List<Product> get cart => _cart;
 
-  // Добавить товар в корзину
-  void addToCart(Product item) {
-    _cart.add(item);
+  // ---------- Firestore интеграция ----------
+
+  // Загружаем корзину из Firestore
+  Future<void> loadCart() async {
+    var snapshot = await db
+        .collection("users")
+        .doc(user.uid)
+        .collection("cart")
+        .get();
+
+    _cart = snapshot.docs.map((doc) {
+      var data = doc.data();
+      return Product(
+        name: data["name"],
+        price: data["price"],
+        imagePath: data["imagePath"],
+        description: data["description"],
+      );
+    }).toList();
+
     notifyListeners();
   }
 
-  // Удалить товар из корзины
-  void removeFromCart(Product item) {
+  // Добавить в корзину (локально + Firestore)
+  Future<void> addToCart(Product item) async {
+    _cart.add(item);
+    notifyListeners();
+
+    await db
+        .collection("users")
+        .doc(user.uid)
+        .collection("cart")
+        .doc(item.name) // имя — уникальный ID
+        .set({
+      "name": item.name,
+      "price": item.price,
+      "description": item.description,
+      "imagePath": item.imagePath,
+    });
+  }
+
+  // Удалить товар
+  Future<void> removeFromCart(Product item) async {
     _cart.remove(item);
     notifyListeners();
+
+    await db
+        .collection("users")
+        .doc(user.uid)
+        .collection("cart")
+        .doc(item.name)
+        .delete();
+  }
+
+  // Очистить корзину
+  Future<void> clearCart() async {
+    _cart.clear();
+    notifyListeners();
+
+    var ref = db.collection("users").doc(user.uid).collection("cart");
+
+    var docs = await ref.get();
+    for (var doc in docs.docs) {
+      await doc.reference.delete();
+    }
   }
 }
