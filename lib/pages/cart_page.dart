@@ -18,15 +18,63 @@ class _CartPageState extends State<CartPage> {
   final user = FirebaseAuth.instance.currentUser!;
 
   Future<int> getBalance() async {
-    var doc = await FirebaseFirestore.instance
-        .collection("users")
-        .doc(user.uid)
-        .get();
-
+    var doc = await FirebaseFirestore.instance.collection("users").doc(user.uid).get();
     return doc.data()?["balance"] ?? 0;
   }
 
-  // ⬆️⬆️⬆️ ПОПОЛНЕНИЕ БАЛАНСА (оставляем как было)
+  Future<Map<String, String>> getUserInfo() async {
+    var doc = await FirebaseFirestore.instance.collection("users").doc(user.uid).get();
+    return {
+      "phone": doc["phone"] ?? "",
+      "address": doc["address"] ?? "",
+    };
+  }
+
+  // 🔥 Изменение адреса и номера перед покупкой
+  Future<Map<String, String>?> editDeliveryDialog() async {
+    final data = await getUserInfo();
+    final phoneCtrl = TextEditingController(text: data["phone"]);
+    final addressCtrl = TextEditingController(text: data["address"]);
+
+    return await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Данные доставки"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: "Номер телефона"),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressCtrl,
+              decoration: const InputDecoration(labelText: "Адрес доставки"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text("Отмена", style: TextStyle(color: Colors.black54),),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: const Text("Сохранить", style: TextStyle(color: Colors.black54),),
+            onPressed: () {
+              Navigator.pop(context, {
+                "phone": phoneCtrl.text,
+                "address": addressCtrl.text,
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 Пополнение баланса
   Future<void> addBalanceDialog(BuildContext context) async {
     TextEditingController amountCtrl = TextEditingController();
 
@@ -41,64 +89,57 @@ class _CartPageState extends State<CartPage> {
         ),
         actions: [
           TextButton(
+            child: const Text("Отмена", style: TextStyle(color: Colors.black54)),
             onPressed: () => Navigator.pop(context),
-            child: const Text("Отмена"),
           ),
           ElevatedButton(
+            child: const Text("Пополнить", style: TextStyle(color: Colors.black54)),
             onPressed: () async {
               int amount = int.tryParse(amountCtrl.text) ?? 0;
+
               if (amount > 0) {
-                await FirebaseFirestore.instance
-                    .collection("users")
-                    .doc(user.uid)
-                    .update({
+                await FirebaseFirestore.instance.collection("users").doc(user.uid).update({
                   "balance": FieldValue.increment(amount),
                 });
 
                 Navigator.pop(context);
                 setState(() {});
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Баланс пополнен на $amount ₸")),
-                );
               }
             },
-            child: const Text("Пополнить"),
           ),
         ],
       ),
     );
   }
 
-  // ⬇️⬇️⬇️ НОВОЕ — ОПЛАТА ПОКУПКИ
+  // 🔥 Оплата покупки
   Future<void> payNow(BuildContext context, List<Product> cart) async {
-    int total = 0;
-    for (var item in cart) {
-      total += item.price.toInt();
-    }
-
+    int total = cart.fold(0, (sum, item) => sum + item.price.toInt());
     int balance = await getBalance();
 
     if (balance < total) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Недостаточно средств! Не хватает ${(total - balance)} ₸",
-          ),
-        ),
+        SnackBar(content: Text("Недостаточно средств! Не хватает ${total - balance} ₸")),
       );
       return;
     }
 
-    // списываем деньги
-    await FirebaseFirestore.instance
-        .collection("users")
-        .doc(user.uid)
-        .update({
+    // ➜ спрашиваем номер + адрес
+    final deliveryData = await editDeliveryDialog();
+    if (deliveryData == null) return;
+
+    // сохраняем новые данные
+    await FirebaseFirestore.instance.collection("users").doc(user.uid).update({
+      "phone": deliveryData["phone"],
+      "address": deliveryData["address"],
+    });
+
+    // ➜ списываем деньги
+    await FirebaseFirestore.instance.collection("users").doc(user.uid).update({
       "balance": FieldValue.increment(-total),
     });
 
-    // запись в историю покупок
+    // ➜ записываем историю
     await FirebaseFirestore.instance
         .collection("users")
         .doc(user.uid)
@@ -107,13 +148,15 @@ class _CartPageState extends State<CartPage> {
       "items": cart.map((e) => e.name).toList(),
       "total": total,
       "date": Timestamp.now(),
+      "address": deliveryData["address"],
+      "phone": deliveryData["phone"],
     });
 
-    // очищаем корзину
+    // ➜ очищаем корзину
     context.read<Shop>().clearCart();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Покупка успешно оплачена!")),
+      const SnackBar(content: Text("Покупка успешно оплачена!")),
     );
 
     setState(() {});
@@ -123,73 +166,119 @@ class _CartPageState extends State<CartPage> {
   Widget build(BuildContext context) {
     final cart = context.watch<Shop>().cart;
 
-    int totalPrice = 0;
-    for (var item in cart) {
-      totalPrice += item.price.toInt();
-    }
+    final total = cart.fold(0, (sum, item) => sum + item.price.toInt());
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: const Color(0xFFF4F4F4),
 
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: const Color(0xFFE32227),
+        centerTitle: true,
         title: FutureBuilder<int>(
           future: getBalance(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return Text("Баланс...");
-            return Text("Баланс: ${snapshot.data} ₸");
+          builder: (context, snap) {
+            if (!snap.hasData) return const Text("Баланс…", style: TextStyle(color: Colors.white));
+            return Text("Баланс: ${snap.data} ₸", style: const TextStyle(color: Colors.white));
           },
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_card_outlined),
+            icon: const Icon(Icons.add_card_outlined, color: Colors.white),
             onPressed: () => addBalanceDialog(context),
-          ),
+          )
         ],
       ),
 
       body: Column(
         children: [
           if (cart.isNotEmpty)
-            Padding(
+            Container(
+              margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(16),
-              child: Text(
-                "Общая сумма: $totalPrice ₸",
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Итого:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text("$total ₸", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ],
               ),
             ),
 
           Expanded(
             child: cart.isEmpty
-                ? const Center(child: Text("Your cart is empty.."))
+                ? const Center(child: Text("Корзина пуста"))
                 : ListView.builder(
+              padding: const EdgeInsets.all(12),
               itemCount: cart.length,
               itemBuilder: (context, index) {
                 final item = cart[index];
 
-                return ListTile(
-                  title: Text(item.name),
-                  subtitle: Text("${item.price} ₸"),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.remove_circle_outline),
-                    onPressed: () {
-                      context.read<Shop>().removeFromCart(item);
-                    },
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      // картинка товара
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          item.imageUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      // текст
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text("${item.price} ₸",
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.grey),
+                        onPressed: () {
+                          context.read<Shop>().removeFromCart(item);
+                        },
+                      ),
+                    ],
                   ),
                 );
               },
             ),
           ),
 
-          Padding(
-            padding: const EdgeInsets.all(50.0),
-            child: MyButton(
-              onTap: () => payNow(context, cart),
-              child: const Text("PAY NOW"),
+          if (cart.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: MyButton(
+                onTap: () => payNow(context, cart),
+                child: const Text(
+                  "ОПЛАТИТЬ",
+                  style: TextStyle(color: Colors.white, fontSize: 18),
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );

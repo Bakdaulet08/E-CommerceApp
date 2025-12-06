@@ -36,7 +36,7 @@ class _BalancePageState extends State<BalancePage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Отмена"),
+            child: const Text("Отмена", style: TextStyle(color: Colors.black54)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -54,7 +54,7 @@ class _BalancePageState extends State<BalancePage> {
                 setState(() {});
               }
             },
-            child: const Text("Пополнить"),
+            child: const Text("Пополнить", style: TextStyle(color: Colors.black54)),
           ),
         ],
       ),

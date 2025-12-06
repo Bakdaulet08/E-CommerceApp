@@ -1,101 +1,89 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../models/product.dart';
 import '../models/shop.dart';
 
 class MyProductTile extends StatelessWidget {
-  const MyProductTile({super.key, required this.product});
-
   final Product product;
-
-  void addToCart(BuildContext context){
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Text("Add this item to your cart?"),
-        actions:[
-          ElevatedButton(
-            onPressed: ()=> Navigator.pop(context),
-            child: Text("Cancel")
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<Shop>().addToCart(product);
-              },
-            child: Text("Add")
-          )
-        ]
-      ),
-    );
-  }
+  const MyProductTile({super.key, required this.product});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-
+        border: Border.all(color: Colors.grey.shade300),
       ),
-      width: 300,
-      margin: const EdgeInsets.all(10),
-      padding: const EdgeInsets.all(25),
+      padding: const EdgeInsets.all(8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // 📌 Большая картинка
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: AspectRatio(
+              aspectRatio: 1, // квадратная = ровная, большая
+              child: Image.network(
+                product.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => const Icon(Icons.broken_image),
+              ),
+            ),
+          ),
 
-          children: [
-          Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 6),
 
-              children:[
-              AspectRatio(
-                aspectRatio:1,
-                child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
+          // 📌 Название
+          Text(
+            product.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
 
-                    ),
-                    width: double.infinity,
-                    // padding: EdgeInsets.all(25),
-                    child: Image.asset(product.imagePath),
+          const SizedBox(height: 4),
+
+          // 📌 Цена
+          Text(
+            "${product.price.toStringAsFixed(0)} ₸",
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.red,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const Spacer(),
+
+          // 📌 Кнопка
+          SizedBox(
+            width: double.infinity,
+            height: 34,
+            child: ElevatedButton(
+              onPressed: () {
+                context.read<Shop>().addToCart(product);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Добавлено в корзину")),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                padding: EdgeInsets.zero,
               ),
-              const SizedBox(height: 25),
-              Text(
-                  product.name,
-                  style: TextStyle(
-                      fontWeight:FontWeight.bold,
-                      fontSize: 20
-                  )
+              child: const Text(
+                "В корзину",
+                style: TextStyle(fontSize: 14),
               ),
-              const SizedBox(height: 10),
-              Text(product.description),
-              const SizedBox(height: 75),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("${product.price.toStringAsFixed(2)}tg"),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondary,
-                      borderRadius: BorderRadius.circular(12)
-                    ),
-                    child: IconButton(
-                      onPressed: ()=> addToCart(context),
-                      icon: const Icon(Icons.add),
-                    )
-                  )
-                ],
-              ),
-
-
-            ]
-          )
-        ]
-      )
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
