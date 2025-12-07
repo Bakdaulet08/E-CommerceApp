@@ -18,7 +18,7 @@ class MyListTile extends StatelessWidget {
       child: ListTile(
 
         leading: Icon(
-            icon, color: Colors.grey,
+          icon, color: Colors.grey,
 
         ),
         title: Text(text),

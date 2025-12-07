@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/product.dart';
-import '../models/shop.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../data/models/product.dart';
+import '../providers/shop_provider.dart';
 
 class MyProductTile extends StatelessWidget {
   final Product product;
@@ -9,6 +11,8 @@ class MyProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -18,22 +22,20 @@ class MyProductTile extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       child: Column(
         children: [
-          // 📌 Большая картинка
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: AspectRatio(
-              aspectRatio: 1, // квадратная = ровная, большая
+              aspectRatio: 1,
               child: Image.network(
                 product.imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => const Icon(Icons.broken_image),
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
               ),
             ),
           ),
 
           const SizedBox(height: 6),
 
-          // 📌 Название
           Text(
             product.name,
             maxLines: 1,
@@ -46,7 +48,6 @@ class MyProductTile extends StatelessWidget {
 
           const SizedBox(height: 4),
 
-          // 📌 Цена
           Text(
             "${product.price.toStringAsFixed(0)} ₸",
             style: const TextStyle(
@@ -58,13 +59,13 @@ class MyProductTile extends StatelessWidget {
 
           const Spacer(),
 
-          // 📌 Кнопка
           SizedBox(
             width: double.infinity,
             height: 34,
             child: ElevatedButton(
-              onPressed: () {
-                context.read<Shop>().addToCart(product);
+              onPressed: () async {
+                await context.read<ShopProvider>().addToCart(uid, product);
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Добавлено в корзину")),
                 );
@@ -78,7 +79,7 @@ class MyProductTile extends StatelessWidget {
               ),
               child: const Text(
                 "В корзину",
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14, color: Colors.white),
               ),
             ),
           ),

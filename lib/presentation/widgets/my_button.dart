@@ -8,16 +8,16 @@ class MyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap:onTap,
+        onTap:onTap,
 
-      child:Container(
-        decoration: BoxDecoration(color:Theme.of(context).colorScheme.secondaryContainer,borderRadius: BorderRadius.circular(12), ),
-        padding: const EdgeInsets.all(25),
+        child:Container(
+          decoration: BoxDecoration(color:Theme.of(context).colorScheme.secondaryContainer,borderRadius: BorderRadius.circular(12), ),
+          padding: const EdgeInsets.all(25),
 
 
 
-        child: child,
-      )
+          child: child,
+        )
     );
   }
 }
